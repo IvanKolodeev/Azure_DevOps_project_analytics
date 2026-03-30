@@ -2,3 +2,4 @@
 *.xlsx
 *.parquet
 *.csv
+.venv

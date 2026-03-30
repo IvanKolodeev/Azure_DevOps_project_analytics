@@ -1,5 +1,5 @@
 [project]
-name = "ADO metrics"
+name = "ADO_metrics"
 version = "0.1"
 readme = "Functional_Requirements_Team_Analytics.md"
 requires-python = ">=3.11,<3.14"
@@ -19,6 +19,3 @@ dependencies = [
 dev = [
   "ipykernel>=6.30,<7",
 ]
-
-[tool.setuptools.packages.find]
-where = ["src"]
