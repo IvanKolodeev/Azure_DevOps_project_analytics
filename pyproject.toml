@@ -1,0 +1,24 @@
+[project]
+name = "ADO metrics"
+version = "0.1"
+readme = "Functional_Requirements_Team_Analytics.md"
+requires-python = ">=3.11,<3.14"
+
+dependencies = [
+  "requests>=2.32,<3",
+  "python-dotenv>=1.2,<2",
+  "pandas>=2.3,<3",
+  "openpyxl>=3.1,<4",
+  "xlsxwriter>=3.2,<4",
+  "pyarrow>=21,<22",
+  "scipy>=1.16,<2",
+  "natsort>=8.4,<9",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ipykernel>=6.30,<7",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
