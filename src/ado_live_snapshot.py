@@ -152,7 +152,7 @@ def download_live_snapshot(
     org: str,
     project: str,
     auth: HTTPBasicAuth,
-    output_folder: str = "live_snapshots",
+    output_folder: str = "data/live_snapshots",
 ) -> pd.DataFrame:
     """Download a live snapshot of all work items from Azure DevOps and save as Parquet.
 
