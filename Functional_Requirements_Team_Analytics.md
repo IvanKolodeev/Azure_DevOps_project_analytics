@@ -6,8 +6,6 @@
 ---
 
 ## Code fail cases and todos as of 2026-03-30:
-#### 0-Load_Azure_Snapshots.ipynb
-- if PAT has expired, error raised warning is not clear. Possibly add step which checks PAT and returns clear error if any.
 #### 1-ADO_Reporting.ipynb
 - it is 1st day of sprint and no work item is assigned to it (or sprint not created). So, dataframe bd_current is empty and calculation fails. Need separate checks for both cases, returt WARNING and continue calculation without uploading burndowns
 

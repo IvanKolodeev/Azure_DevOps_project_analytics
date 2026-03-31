@@ -53,5 +53,4 @@ Notebooks are run sequentially in Jupyter:
 ## Known Issues
 
 Tracked in `Functional_Requirements_Team_Analytics.md` under "Code fail cases and todos":
-- Expired PAT gives unclear errors
 - Empty current sprint causes calculation failures in burndown
