@@ -4,3 +4,7 @@
 *.csv
 .venv
 *.egg-info
+live_snapshots
+__pycache__
+*.pyc
+.claude
