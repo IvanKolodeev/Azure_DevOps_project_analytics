@@ -53,6 +53,5 @@ Notebooks are run sequentially in Jupyter:
 ## Known Issues
 
 Tracked in `Functional_Requirements_Team_Analytics.md` under "Code fail cases and todos":
-- First-run historical sync doesn't work (no existing parquet to append to)
 - Expired PAT gives unclear errors
 - Empty current sprint causes calculation failures in burndown
