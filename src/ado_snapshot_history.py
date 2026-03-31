@@ -156,7 +156,7 @@ def download_snapshot_history(
     org: str,
     project: str,
     auth: HTTPBasicAuth,
-    snapshot_path: str = "work_item_snapshot.parquet",
+    snapshot_path: str,
     today: date | None = None,
 ) -> pd.DataFrame:
     """Download historical snapshots from OData and append to the parquet file.
