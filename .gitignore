@@ -1,6 +1,13 @@
 .env
+.venv
 *.xlsx
 *.parquet
 *.csv
-.venv
+*.pyc
 *.egg-info
+live_snapshots
+live_snapshots/*
+result
+result/*
+.claude
+__pycache__
