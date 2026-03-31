@@ -88,6 +88,7 @@ DATE_COLS = ["CreatedDate", "ChangedDate", "StateChangeDate", "ClosedDate"]
 
 
 def _fetch_work_item_ids(org: str, project: str, auth: HTTPBasicAuth) -> list[int]:
+    """Run a WIQL query to get all work item IDs for the given project."""
     wiql_url = f"https://dev.azure.com/{org}/{project}/_apis/wit/wiql?api-version=7.0"
     wiql_query = f"SELECT [System.Id] FROM workitems WHERE [System.TeamProject] = '{project}'"
     resp = requests.post(wiql_url, json={"query": wiql_query}, auth=auth)
@@ -100,6 +101,7 @@ def _fetch_work_item_ids(org: str, project: str, auth: HTTPBasicAuth) -> list[in
 
 
 def _fetch_work_items_batch(org: str, ids: list[int], auth: HTTPBasicAuth, chunk_size: int = 200) -> list[dict]:
+    """Fetch full work item details in batches using the WorkItemsBatch API."""
     batch_url = f"https://dev.azure.com/{org}/_apis/wit/workitemsbatch?api-version=7.0"
     rows = []
     for i in range(0, len(ids), chunk_size):
@@ -114,6 +116,7 @@ def _fetch_work_items_batch(org: str, ids: list[int], auth: HTTPBasicAuth, chunk
 
 
 def _flatten_iterations(node: dict, parent_path: str | None = None) -> list[dict]:
+    """Recursively flatten the iteration classification tree into a list of dicts with path and dates."""
     name = node["name"]
     path = name if parent_path is None else f"{parent_path}\\{name}"
     attrs = node.get("attributes", {})
@@ -130,6 +133,7 @@ def _flatten_iterations(node: dict, parent_path: str | None = None) -> list[dict
 
 
 def _fetch_iteration_dates(org: str, project: str, auth: HTTPBasicAuth) -> pd.DataFrame:
+    """Fetch iteration start/end dates from the classification nodes API and return as a DataFrame."""
     url = f"https://dev.azure.com/{org}/{project}/_apis/wit/classificationnodes/iterations?$depth=10&api-version=7.0"
     resp = requests.get(url, auth=auth)
     resp.raise_for_status()
@@ -140,6 +144,7 @@ def _fetch_iteration_dates(org: str, project: str, auth: HTTPBasicAuth) -> pd.Da
 
 
 def _last_segment(series: pd.Series) -> pd.Series:
+    """Extract the last backslash-separated segment from a path series (e.g. 'Project\\Area' -> 'Area')."""
     return series.fillna("").str.split("\\").str[-1].replace("", pd.NA)
 
 
