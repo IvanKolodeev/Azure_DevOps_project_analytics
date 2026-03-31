@@ -10,7 +10,6 @@
 - if it is first run for the project - sync of historical data will not work
 - if PAT has expired, error raised warning is not clear. Possibly add step which checks PAT and returns clear error if any.
 - if "last_snapshot_date" is up-to-date, we do not need to load new info. As at now solved via SystemExit. Need something more proper
-- live_snapshot .parquet file should be deleted after concatenation to "work_item_snapshot.parquet"
 #### 1-ADO_Reporting.ipynb
 - it is 1st day of sprint and no work item is assigned to it (or sprint not created). So, dataframe bd_current is empty and calculation fails. Need separate checks for both cases, returt WARNING and continue calculation without uploading burndowns
 
@@ -80,6 +79,23 @@ The system will operate on manually exported CSV/Excel files from ADO, process a
 The output is a single Excel workbook **Team Analytics Dashboard.xlsx** containing analytical worksheets, each with both a **data table** and **chart visualization**.
 
 ---
+
+#### 0. w/s with all workitems and its hierarcy
+
+**Usage:**
+1. Used to navigate between workitems within project. 
+2. Perform search of work item, which are not longer visible in ADO board (eg - long-ago closed tasks).
+
+**Report structure**:
+`IterationName` - name of Iteration (sprint), currently assigned to work item
+`Epic` - parent EPIC of the work item
+`User Story` - parent User Story of the work item
+`Title` - title of the work item
+`WorkItemType` - type of the work item
+`Priority` - priority number currently assigned to the work item
+`AssignedTo` - account name, to which work item is assigned
+`State` - current status of the work item
+`WorkItemURL` - URL to this item on ADO desk
 
 #### 1. Report for Stand-Up - <font color = "green">**Done**</font>
 

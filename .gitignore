@@ -3,3 +3,4 @@
 *.parquet
 *.csv
 .venv
+*.egg-info
