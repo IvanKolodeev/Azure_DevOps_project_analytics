@@ -7,19 +7,23 @@ from requests.auth import HTTPBasicAuth
 
 
 def _fetch_earliest_snapshot_date(base: str, auth: HTTPBasicAuth) -> date:
-    """Query OData WorkItemSnapshot for the earliest available date in the project."""
-    url = f"{base}/WorkItemSnapshot"
+    """Query OData WorkItems for the earliest CreatedDate in the project.
+
+    Uses WorkItems (not WorkItemSnapshot) because snapshot entity sets
+    don't support direct broad reads with $orderby/$top.
+    """
+    url = f"{base}/WorkItems"
     params = {
-        "$select": "DateValue",
-        "$orderby": "DateValue asc",
+        "$select": "CreatedDate",
+        "$orderby": "CreatedDate asc",
         "$top": "1",
     }
     resp = requests.get(url, auth=auth, params=params)
     resp.raise_for_status()
     rows = resp.json().get("value", [])
     if not rows:
-        raise ValueError("No snapshots available in OData for this project.")
-    return pd.to_datetime(rows[0]["DateValue"]).date()
+        raise ValueError("No work items found in OData for this project.")
+    return pd.to_datetime(rows[0]["CreatedDate"]).date()
 
 
 def _load_existing_snapshots(snapshot_path: str) -> pd.DataFrame | None:

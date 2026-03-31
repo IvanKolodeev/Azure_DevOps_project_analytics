@@ -5,6 +5,7 @@
 .venv
 *.egg-info
 live_snapshots
+live_snapshots/*
 __pycache__
 *.pyc
 .claude

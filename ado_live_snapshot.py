@@ -189,7 +189,7 @@ def download_live_snapshot(
     # 7. Save to parquet
     os.makedirs(output_folder, exist_ok=True)
     today_str = datetime.today().strftime("%Y-%m-%d")
-    file_path = os.path.join(output_folder, f"live_snapshot_{today_str}.parquet")
+    file_path = os.path.join(output_folder, f"{project}_live_snapshot_{today_str}.parquet")
     wi_live.to_parquet(file_path, index=False)
     print(f"Saved {len(wi_live)} rows to {file_path}")
 
