@@ -211,6 +211,6 @@ def download_snapshot_history(
 
     # Save
     work_items.to_parquet(snapshot_path, index=False)
-    print(f"Parquet updated. Total rows now: {len(work_items)}")
+    print(f"{snapshot_path} updated. Total rows now: {len(work_items)}")
 
     return work_items
