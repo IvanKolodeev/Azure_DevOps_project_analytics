@@ -327,6 +327,11 @@ def compute_daily_meeting(
         Sprint 35        API rework      Login form    Add CSRF       ...  1.5                       ...  4.0
         Sprint 35        API rework      Login form    Hook into UI   ...  0.0                       ...  2.0
     """
+    if daily_charge_by_task.empty:
+        raise ValueError(
+            "Report can only be created for projects older than 3 days."
+        )
+
     today_snap = _latest_snapshot(wi_raw_snapshots)
     leaves = _select_leaves(today_snap)
     id_map = _build_id_map(today_snap)
@@ -335,6 +340,15 @@ def compute_daily_meeting(
     completed_wide, completed_cols = _build_completed_columns(
         daily_charge_by_task, today
     )
+    if len(completed_cols) != 3:
+        window = sorted(_stand_up_window(today))
+        raise ValueError(
+            f"Stand-up report requires 3 'Completed for ...' columns but got "
+            f"{len(completed_cols)} for today={today}. This usually means "
+            f"'today' falls outside the latest sprint — there is no charged "
+            f"work in the lookback window {window}. "
+            f"Set 'today' to a date within the latest active sprint."
+        )
 
     daily_meeting = _assemble_daily_meeting(leaves, completed_wide, completed_cols)
     daily_meeting = _mark_ignore(daily_meeting, completed_cols, pd.Timestamp(today))
