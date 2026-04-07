@@ -184,18 +184,17 @@ def get_sprint_info(dataset: pd.DataFrame, today: date) -> SprintInfo:
     )
     current_row = sprints.loc[mask_current].sort_values("IterationStart").tail(1)
 
-    if not current_row.empty:
-        current_sprint = current_row.iloc[0]["IterationName"]
-        current_start = current_row.iloc[0]["IterationStart"]
-    else:
-        current_sprint = None
-        current_start = None
+    if current_row.empty:
+        raise ValueError(
+            f"No active sprint found in dataset for today={today}. Either the "
+            f"current sprint is not yet created in ADO, or it has no work items "
+            f"assigned to it."
+        )
 
-    if current_start is not None:
-        prev_mask = sprints["IterationEnd"] < current_start
-    else:
-        prev_mask = sprints["IterationEnd"] < today_ts
+    current_sprint = current_row.iloc[0]["IterationName"]
+    current_start = current_row.iloc[0]["IterationStart"]
 
+    prev_mask = sprints["IterationEnd"] < current_start
     prev_row = sprints.loc[prev_mask].sort_values("IterationEnd").tail(1)
     previous_sprint = prev_row.iloc[0]["IterationName"] if not prev_row.empty else None
 
