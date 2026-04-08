@@ -5,11 +5,6 @@
 
 ---
 
-## Code fail cases and todos as of 2026-03-30:
-#### 1-ADO_Reporting.ipynb
-- it is 1st day of sprint and no work item is assigned to it (or sprint not created). So, dataframe bd_current is empty and calculation fails. Need separate checks for both cases, returt WARNING and continue calculation without uploading burndowns
-
-
 ## 1. Purpose and Scope
 
 The purpose of this dashboard is to provide Project Managers (PMs) and team members with a unified view of delivery progress, capacity usage, estimation accuracy, and daily work trends based on Azure DevOps (ADO) exports.
