@@ -20,6 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 import ado_reporting as cl
+import utilisation as ut
 
 BASELINE_DIR = REPO_ROOT / "tests" / "baselines"
 BASELINE_DIR.mkdir(parents=True, exist_ok=True)
@@ -307,113 +308,22 @@ def _run_pipeline():
     bd_assignee_pivot = bd_assignee_pivot.reset_index().rename(columns={"SnapshotDate": "Date"})
     results["bd_assignee_pivot"] = bd_assignee_pivot
 
-    # -- utilisation (cells 24-32) --
-    sprints_u = sprints[
-        (~sprints['IterationStart'].isna()) &
-        (~sprints['IterationEnd'].isna())
-    ].copy()
-    sprints_u['IterationStart'] = pd.to_datetime(sprints_u["IterationStart"])
-    sprints_u['IterationEnd'] = pd.to_datetime(sprints_u["IterationEnd"])
-
-    utilisation = wi_raw_snapshots[["SnapshotDate", "IterationName", "IterationStart", "IterationEnd", "WorkItemType", "Title", "State", "AssignedTo", "CompletedWork", "OriginalEstimate", "RemainingWork", "WorkItemURL"]].copy()
-    utilisation['IterationStart'] = pd.to_datetime(utilisation["IterationStart"])
-    utilisation['IterationEnd'] = pd.to_datetime(utilisation["IterationEnd"])
-    utilisation = utilisation[utilisation["IterationStart"] >= pd.to_datetime(start_date)]
-    utilisation = utilisation[utilisation["SnapshotDate"] == utilisation["IterationStart"]]
-
-    utilisation["PrevDate"] = utilisation["SnapshotDate"] - pd.Timedelta(days=1)
-    utilisation = utilisation.merge(
-        wi_raw_snapshots[["SnapshotDate", "WorkItemURL", "CompletedWork"]],
-        left_on=["WorkItemURL", "PrevDate"],
-        right_on=["WorkItemURL", "SnapshotDate"],
-        how="left",
-        suffixes=('', '_start')
-    ).drop(columns=["SnapshotDate_start", "PrevDate"])
-    utilisation["Completed_at_sprint_start"] = utilisation["CompletedWork_start"].fillna(0)
-    utilisation = utilisation.drop(columns=["CompletedWork", "CompletedWork_start"])
-    utilisation["Planned_for_sprint"] = (utilisation["OriginalEstimate"] - utilisation["Completed_at_sprint_start"]).clip(lower=0)
-
-    # charged time by sprints
-    id_cols = ["Assigned To", "IterationName", "WorkItemType", "Title", "WorkItemURL"]
-    date_cols_cbs = [c for c in daily_charge_by_task.columns if c not in id_cols + ["total_charge"]]
-    charge_by_sprint = daily_charge_by_task.melt(
-        id_vars=id_cols, value_vars=date_cols_cbs,
-        var_name="SnapshotDate", value_name="charge"
-    )
-    charge_by_sprint["SnapshotDate"] = pd.to_datetime(charge_by_sprint["SnapshotDate"], errors="coerce")
-    charge_by_sprint = charge_by_sprint[charge_by_sprint["charge"].fillna(0) != 0]
-
-    charge_by_sprint = charge_by_sprint.merge(
-        sprints_u[['IterationName', 'IterationStart', 'IterationEnd']],
-        how='left', left_on=None, right_on=None, suffixes=('', '_s')
-    )
-    intervals = pd.IntervalIndex.from_arrays(sprints_u['IterationStart'], sprints_u['IterationEnd'], closed='both')
-    idx = intervals.get_indexer(charge_by_sprint['SnapshotDate'])
-    charge_by_sprint['WorkingIteration'] = np.where(idx >= 0, sprints_u['IterationName'].to_numpy()[idx], pd.NA)
-    charge_by_sprint = (
-        charge_by_sprint.groupby(['WorkingIteration', 'Assigned To', 'WorkItemType', 'Title', 'WorkItemURL'], as_index=False)['charge']
-            .sum()
-    )
-    charge_by_sprint = charge_by_sprint.dropna(subset=['WorkingIteration'])
+    # -- utilisation (delegated to src/utilisation.py) --
+    # The local daily_charge_by_task here uses "Assigned To"; the utilisation
+    # module expects "AssignedTo" to match wi_raw_snapshots.
+    dct = daily_charge_by_task.rename(columns={"Assigned To": "AssignedTo"})
+    charge_by_sprint = ut.compute_charge_by_sprint(dct, sprints)
     results["charge_by_sprint"] = charge_by_sprint
 
-    # planned / unplanned split
-    utilisation = utilisation.merge(
-        charge_by_sprint[["WorkItemURL", "WorkingIteration", "charge"]],
-        left_on=["WorkItemURL", "IterationName"],
-        right_on=["WorkItemURL", "WorkingIteration"],
-        how="left"
-    )
-    utilisation["charge"] = utilisation["charge"].fillna(0)
-    utilisation["Planned"] = "yes"
-    utilisation = utilisation[["IterationName", "AssignedTo", "WorkItemType", "Title", "Planned", "Planned_for_sprint", "charge", "WorkItemURL"]]
-
-    not_planned_charge = charge_by_sprint.merge(
-        utilisation[["WorkItemURL", "IterationName"]],
-        left_on=["WorkItemURL", "WorkingIteration"],
-        right_on=["WorkItemURL", "IterationName"],
-        how="left"
-    )
-    not_planned_charge = not_planned_charge[not_planned_charge["IterationName"].isna()]
-    not_planned_charge["Planned"] = "no"
-    not_planned_charge["Planned_for_sprint"] = 0
-    not_planned_charge = not_planned_charge[["WorkingIteration", "Assigned To", "WorkItemType", "Title", "Planned_for_sprint", "charge", "WorkItemURL", "Planned"]].rename(columns={"Assigned To": "AssignedTo", "WorkingIteration": "IterationName"})
-    utilisation = pd.concat([utilisation, not_planned_charge])
-    utilisation["Completed time"] = utilisation["charge"]
-
-    # metrics
-    utilisation = utilisation[utilisation["AssignedTo"] != "Horin Serhii"]
-    utilisation["Completed for planned tasks"] = np.where(
-        utilisation["Planned"] == "yes",
-        utilisation[["Completed time", "Planned_for_sprint"]].min(axis=1), 0
-    )
-    utilisation["Overcharged_planned_tasks"] = np.where(
-        utilisation["Planned"] == "yes",
-        (utilisation["Completed time"] - utilisation["Planned_for_sprint"]).clip(lower=0), 0
-    )
-    utilisation["NOT DONE but planed"] = (utilisation["Planned_for_sprint"] - utilisation["Completed time"]).clip(lower=0)
-    utilisation["Completed non-sprint tasks"] = np.where(
-        utilisation["Planned"] == "no", utilisation["Completed time"], 0
+    utilisation = ut.compute_utilisation_detail(
+        wi_raw_snapshots=wi_raw_snapshots,
+        sprints=sprints,
+        charge_by_sprint=charge_by_sprint,
+        start_date=start_date,
     )
     results["utilisation"] = utilisation
 
-    utilisation_summary = (
-        utilisation.groupby(['AssignedTo', 'IterationName'], as_index=False)
-        [['Planned_for_sprint', 'Completed for planned tasks', 'NOT DONE but planed', 'Completed time', 'Completed non-sprint tasks', 'Overcharged_planned_tasks']].sum()
-    )
-    utilisation_time_map = {
-        'Vasilov Denys': 60, 'Vasilov Denys S.': 60,
-        'Sukonnik Illia V.': 50, 'Kolodieiev Ivan': 50,
-        'Andrianov Vladyslav': 40,
-    }
-    utilisation_summary['Utilisation time'] = (
-        utilisation_summary['AssignedTo'].map(utilisation_time_map).fillna(0).astype(int)
-    )
-    utilisation_summary = utilisation_summary.sort_values(["AssignedTo", "IterationName"], ascending=False)
-    utilisation_summary["Underutilised"] = utilisation_summary['Utilisation time'] - utilisation_summary["Completed time"]
-    utilisation_summary["Overplanned / Underplanned"] = utilisation_summary['Planned_for_sprint'] - utilisation_summary["Utilisation time"]
-    utilisation_summary["Work hours debt"] = np.maximum(np.minimum(utilisation_summary["Planned_for_sprint"], utilisation_summary["Utilisation time"]), utilisation_summary["Utilisation time"]) - utilisation_summary["Completed time"]
-    utilisation_summary = utilisation_summary[["AssignedTo", "IterationName", "Utilisation time", "Planned_for_sprint", "Overplanned / Underplanned", "Completed for planned tasks", 'Overcharged_planned_tasks', "Completed non-sprint tasks", "Work hours debt"]]
+    utilisation_summary = ut.compute_utilisation_summary(utilisation)
     results["utilisation_summary"] = utilisation_summary
 
     # save scalar values

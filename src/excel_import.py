@@ -30,6 +30,8 @@ Public API
 - :func:`write_sprint_burndown_sheet` - single-series burndown + line chart.
 - :func:`write_burndown_by_assignee_sheet` - multi-series burndown,
   completion histogram.
+- :func:`save_utilisation_report` - write the utilisation workbook
+  (Summary + Details sheets).
 """
 
 from __future__ import annotations
@@ -601,5 +603,72 @@ def save_team_analytics_report(
             write_burndown_by_assignee_sheet(
                 writer, bd_assignee_pivot, current_sprint, fmts
             )
+
+    return output_file
+
+
+# ---------------------------------------------------------------------------
+# Utilisation workbook.
+# ---------------------------------------------------------------------------
+
+
+def _format_utilisation_sheet(
+    writer,
+    df: pd.DataFrame,
+    sheet_name: str,
+    fmts: FormatBook,
+    *,
+    extra_pad: int = 2,
+    min_width: int = 10,
+    max_width: int = 60,
+) -> None:
+    """Apply the standard utilisation-workbook formatting to one sheet.
+
+    Mirrors the inline formatter that previously lived in the notebook:
+    bold/wrapped header row, autosized columns based on header + sampled
+    cell length, frozen header row, and an autofilter across the table.
+    """
+    ws = writer.sheets[sheet_name]
+    header_fmt = fmts.get("header")
+
+    for col_idx, col_name in enumerate(df.columns):
+        ws.write(0, col_idx, col_name, header_fmt)
+
+    for col_idx, col_name in enumerate(df.columns):
+        header_len = len(str(col_name))
+        if len(df) > 0:
+            sample = df.iloc[:500, col_idx].astype(str)
+            content_len = sample.map(len).max()
+        else:
+            content_len = 0
+        width = max(header_len, content_len) + extra_pad
+        width = max(min_width, min(width, max_width))
+        ws.set_column(col_idx, col_idx, width)
+
+    ws.freeze_panes(1, 0)
+    ws.autofilter(0, 0, 0, len(df.columns) - 1)
+
+
+def save_utilisation_report(
+    output_file: Path,
+    *,
+    utilisation_summary: pd.DataFrame,
+    utilisation: pd.DataFrame,
+) -> Path:
+    """Write the utilisation workbook (``Summary`` + ``Details`` sheets).
+
+    Both sheets share the same formatting helper - bold wrapped headers,
+    autosized columns, frozen header row, autofilter. The summary tab is
+    written first so it is the default tab when the file opens.
+
+    Returns the ``output_file`` path for convenience / chaining.
+    """
+    with pd.ExcelWriter(output_file, engine="xlsxwriter") as writer:
+        utilisation_summary.to_excel(writer, sheet_name="Summary", index=False)
+        utilisation.to_excel(writer, sheet_name="Details", index=False)
+
+        fmts = FormatBook(writer.book)
+        _format_utilisation_sheet(writer, utilisation_summary, "Summary", fmts)
+        _format_utilisation_sheet(writer, utilisation, "Details", fmts)
 
     return output_file
