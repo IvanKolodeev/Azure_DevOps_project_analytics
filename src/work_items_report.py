@@ -157,7 +157,7 @@ def _melt_task_charge(daily_charge_by_task: pd.DataFrame) -> pd.DataFrame:
     date_cols = [
         c for c in daily_charge_by_task.columns
         if c not in (
-            "Assigned To", "IterationName", "WorkItemType",
+            "AssignedTo", "IterationName", "WorkItemType",
             "Title", "total_charge", "WorkItemURL",
         )
     ]

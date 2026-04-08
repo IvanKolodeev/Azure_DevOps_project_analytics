@@ -82,15 +82,15 @@ def compute_daily_charge_by_person(
 ) -> pd.DataFrame:
     """Aggregate daily charge per assignee into a wide table.
 
-    Result columns: ``Assigned To`` + one column per snapshot date
+    Result columns: ``AssignedTo`` + one column per snapshot date
     (as ``YYYY-MM-DD`` strings) + ``total_charge``. The earliest date is
     dropped (incoming hours), and rows that sum to zero are removed.
 
     Example output::
 
-        Assigned To   2026-03-02  2026-03-03  ...  total_charge
-        Alice         2.0         3.0         ...  12.5
-        Bob           0.0         4.0         ...   8.0
+        AssignedTo   2026-03-02  2026-03-03  ...  total_charge
+        Alice        2.0         3.0         ...  12.5
+        Bob          0.0         4.0         ...   8.0
     """
     df = _add_daily_charge(wi_raw_snapshots)
 
@@ -112,8 +112,8 @@ def compute_daily_charge_by_person(
     wide["total_charge"] = wide.sum(axis=1)
     wide = wide[wide["total_charge"] != 0]
 
-    wide = wide.reset_index().rename(columns={"AssignedTo": "Assigned To"})
-    wide = _stringify_date_columns(wide, exclude=("Assigned To", "total_charge"))
+    wide = wide.reset_index()
+    wide = _stringify_date_columns(wide, exclude=("AssignedTo", "total_charge"))
     return wide
 
 
@@ -128,8 +128,8 @@ def compute_daily_charge_by_task(
 
     Example output (some columns elided)::
 
-        Assigned To  IterationName  WorkItemType  Title       2026-03-02  ...  total_charge  WorkItemURL
-        Alice        Sprint 12      Task          Refactor X  2.0         ...  5.0           https://...
+        AssignedTo  IterationName  WorkItemType  Title       2026-03-02  ...  total_charge  WorkItemURL
+        Alice       Sprint 12      Task          Refactor X  2.0         ...  5.0           https://...
     """
     df = _add_daily_charge(wi_raw_snapshots)
 
@@ -152,9 +152,9 @@ def compute_daily_charge_by_task(
     wide = wide[wide["total_charge"] != 0]
 
     wide = _stringify_date_columns(wide, exclude=("total_charge",))
-    wide = wide.reset_index().rename(columns={"AssignedTo": "Assigned To"})
+    wide = wide.reset_index()
 
-    base_cols = ["Assigned To", "IterationName", "WorkItemType", "Title"]
+    base_cols = ["AssignedTo", "IterationName", "WorkItemType", "Title"]
     tail_cols = ["total_charge", "WorkItemURL"]
     date_cols_str = [c for c in wide.columns if c not in base_cols + tail_cols]
     final_cols = [c for c in base_cols + date_cols_str + tail_cols if c in wide.columns]
@@ -166,22 +166,22 @@ def export_daily_charge_for_powerbi(
 ) -> pd.DataFrame:
     """Reshape per-assignee charge to long format and write a Power BI CSV.
 
-    Output columns: ``Assigned To``, ``Date`` (``YYYY-MM-DD``), ``Hours``,
+    Output columns: ``AssignedTo``, ``Date`` (``YYYY-MM-DD``), ``Hours``,
     ``MonthYear`` (e.g. ``Mar-26``), ``DayNum``.
 
     Example output::
 
-        Assigned To   Date         Hours   MonthYear  DayNum
-        Alice         2026-03-02   2.0     Mar-26     2
-        Alice         2026-03-03   3.0     Mar-26     3
+        AssignedTo   Date         Hours   MonthYear  DayNum
+        Alice        2026-03-02   2.0     Mar-26     2
+        Alice        2026-03-03   3.0     Mar-26     3
     """
     date_cols = [
         c for c in daily_charge_by_person.columns
-        if c not in ("Assigned To", "total_charge")
+        if c not in ("AssignedTo", "total_charge")
     ]
 
     long_df = daily_charge_by_person.melt(
-        id_vars=["Assigned To"],
+        id_vars=["AssignedTo"],
         value_vars=date_cols,
         var_name="Date",
         value_name="Hours",
