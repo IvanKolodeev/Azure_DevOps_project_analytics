@@ -182,6 +182,26 @@ def _fold_weekends_to_monday(long_df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def _expected_work_dates(today: date) -> list[pd.Timestamp]:
+    """Return the 3 expected WorkDate values for the stand-up window.
+
+    Applies the same weekend-folding logic as ``_fold_weekends_to_monday`` so
+    the result matches what the long-form charge data produces.
+    """
+    raw_dates = sorted(_stand_up_window(today))
+    work_dates = []
+    for d in raw_dates:
+        ts = pd.Timestamp(d)
+        wd = ts.weekday()
+        if wd == 5:
+            ts = ts + pd.Timedelta(days=2)
+        elif wd == 6:
+            ts = ts + pd.Timedelta(days=1)
+        work_dates.append(ts)
+    # De-duplicate (e.g. Sat+Sun both fold to same Monday) and sort
+    return sorted(set(work_dates))
+
+
 def _build_completed_columns(
     daily_charge_by_task: pd.DataFrame, today: date
 ) -> tuple[pd.DataFrame, list[str]]:
@@ -190,6 +210,10 @@ def _build_completed_columns(
     Returns the wide frame (one row per WorkItemURL, three date columns named
     ``Completed for YYYY-MM-DD``) plus the ordered list of those column names
     so callers can address them by name.
+
+    If a snapshot is missing for a window date (e.g. ingestion wasn't run that
+    day), the corresponding column is still created with zeros rather than
+    causing a count mismatch.
     """
     long_df = _melt_task_charge(daily_charge_by_task)
 
@@ -205,7 +229,14 @@ def _build_completed_columns(
         index="WorkItemURL", columns="WorkDate", values="daily_charge"
     ).reset_index(drop=False)
 
-    work_dates = sorted(long_df["WorkDate"].unique())
+    # Ensure all 3 expected work-date columns exist even when a snapshot is
+    # missing for one of the window dates (gap in ingestion).
+    expected_work_dates = _expected_work_dates(today)
+    for wd in expected_work_dates:
+        if wd not in wide.columns:
+            wide[wd] = 0.0
+
+    work_dates = sorted(expected_work_dates)
     rename_map = {wd: f"Completed for {pd.Timestamp(wd).date()}" for wd in work_dates}
     wide = wide.rename(columns=rename_map)
     completed_cols = [rename_map[wd] for wd in work_dates]

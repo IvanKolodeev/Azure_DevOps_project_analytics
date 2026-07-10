@@ -73,7 +73,13 @@ def _fetch_snapshot_days(
 
 
 def _parse_snapshot_dates(df: pd.DataFrame) -> pd.DataFrame:
-    """Parse date columns and rename DateValue -> SnapshotDate."""
+    """Parse date columns and rename DateValue -> SnapshotDate.
+
+    ``DateValue`` from OData represents a calendar date, but ADO encodes it as
+    midnight in the organisation's local timezone (e.g. 21:00 UTC for UTC+3).
+    Rounding to the nearest day recovers the intended calendar date regardless
+    of the server's UTC offset (handles offsets up to ±12 h).
+    """
     date_cols = [
         "DateValue", "ChangedDate", "CreatedDate",
         "ClosedDate", "InProgressDate", "CompletedDate", "StateChangeDate",
@@ -81,6 +87,10 @@ def _parse_snapshot_dates(df: pd.DataFrame) -> pd.DataFrame:
     for col in date_cols:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], utc=True, errors="coerce", format="ISO8601")
+    # Normalise SnapshotDate to midnight UTC so that e.g. 2026-07-08 21:00 UTC
+    # (= midnight UTC+3) rounds to 2026-07-09 00:00 UTC, matching the intended date.
+    if "DateValue" in df.columns:
+        df["DateValue"] = df["DateValue"].dt.round("D")
     df = df.rename(columns={"DateValue": "SnapshotDate"})
     return df
 

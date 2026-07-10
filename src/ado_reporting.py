@@ -21,9 +21,13 @@ def _load_historical_snapshots(
 ) -> pd.DataFrame:
     """Load historical parquet and filter to the last `days_back` days."""
     hist = pd.read_parquet(hist_snapshot_path)
+    # Round to nearest day before extracting .date() so that timestamps like
+    # 2026-07-08 21:00:00+00:00 (= midnight UTC+3) resolve to 2026-07-09
+    # rather than 2026-07-08.  This retroactively corrects parquet files saved
+    # before the ADO org switched its timezone offset.
     hist["SnapshotDate"] = pd.to_datetime(
         hist["SnapshotDate"], utc=True, errors="coerce"
-    ).dt.date
+    ).dt.round("D").dt.date
 
     days_from_hist = max(days_back, 0)
     if days_from_hist > 0:
